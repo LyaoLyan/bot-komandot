@@ -1,5 +1,6 @@
 const TelegramApi = require('node-telegram-bot-api')
-
+const sequelize = require("./db")
+const UserModel = require("./models")
 const token = '5580876526:AAFQeKmBlqmXoPC5eZhwRa4vVRTELunTNz4'
 const bot = new TelegramApi(token, { polling: true })
 // const options = {
@@ -28,56 +29,72 @@ const bot = new TelegramApi(token, { polling: true })
 //         ]
 //     })
 // }
+const start = async () => {
+    const formPhone = (user) => {
+        bot.on('message', async msg => {
+            const text = msg.text;
+            // user.state = 'phone'
+            //проверка телефона
+            user.phone = text
+            await user.save();
+            bot.sendMessage(chatId, `Спасибо. Вот ваша анкета: ${user.name} ${user.phone}`)
+        })
+    }
+    const formName = (user) => {
+        bot.on('message', async msg => {
+            try {
+                const text = msg.text;
+                user.state = 'name'
+                //проверка имени
+                user.name = text
+                await user.save();
 
-class User {
-    name;
-    chatId;
-    phone;
-    constructor(chatId, name, phone) {
-        this.chatId = chatId;
-        this.name = name;
-        this.phone = phone;
+                return bot.sendMessage(chatId, `Теперь введи номер телефона`)
+
+            } catch (e) {
+                return bot.sendMessage(chatId, `ОШИБКААААА`)
+            }
+
+        })
     }
-    get name() {
-        return this.name
+    try {
+        await sequelize.authenticate()
+        await sequelize.sync()
+    } catch (error) {
+        console.log('Подключение к бд сломалось', error);
     }
-    set name(name) {
-        this.name = name
-    }
-    set chatId(chatId) {
-        this.chatId = chatId
-    }
-    get phone() {
-        return this.phone
-    }
-    set phone(phone) {
-        this.phone = phone
-    }
-    get form() {
-        return `${this.name} ${this.phone}`
-    }
-}
-let newUser = new User();
-const formPhone = (chatId) => {
+
     bot.on('message', async msg => {
-        formPhone();
-        return bot.sendMessage(chatId, `Спасибо. Вот ваша анкета: ${newUser.form}`)
-    })
-}
-const formName = (chatId) => {
-    bot.on('message', async msg => {
-        formPhone(chatId);
-        return bot.sendMessage(chatId, `Теперь введи номер телефона`)
-    })
-}
-const start = () => {
-    bot.on('message', async msg => {
-        newUser.chatId = msg.chat.id;
-        // console.log(newUser.chatId);
-        if (text === '/start') {
-            formName(newUser.chatId);
-            return bot.sendMessage(newUser.chatId, `Привет! Введи свое ФИО`)
+        console.log(msg);
+        const text = msg.text;
+        const chatId = msg.chat.id;
+        try {
+            const user = await UserModel.findOne({ chatId })
+            if (text === '/start') {
+                user.state = 'start'
+                await user.save()
+                return bot.sendMessage(chatId, `Привет! Введи свое ФИО`)
+            } else {
+                switch (user.state) {
+                    case 'start':
+                        formName(user)
+                        break;
+                    case 'name':
+                        formPhone(user)
+                        break;
+
+                    default:
+                        break;
+                }
+                
+            }
+            // return bot.sendMessage(chatId, `Я тебя не понимаю, попробуй еще раз`)
+        } catch (error) {
+            await bot.sendMessage(chatId, "Произошла ошибка! " + error)
         }
+
+        // console.log(newUser.chatId);
+
         // if (text.indexOf('/name') !== -1) {
         //     const name = text.substr(5)
         //     return bot.sendMessage(newUser.chatId, `Твое имя ${name}. Теперь введи телефон после /phone через пробел. \nПример: /phone 89999999999`)
@@ -86,9 +103,8 @@ const start = () => {
         //     const phone = text.substr(6)
         //     return bot.sendMessage(newUser.chatId, `Твой телефон ${phone}. Спасибо за регистрацию!`)
         // }
-        // return bot.sendMessage(newUser.chatId(), `Я тебя не понимаю, попробуй еще раз`)
-    })
 
+    })
 
 }
 start()
