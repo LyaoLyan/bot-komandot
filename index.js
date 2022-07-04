@@ -30,64 +30,70 @@ const bot = new TelegramApi(token, { polling: true })
 //     })
 // }
 const start = async () => {
-    const formPhone = (user) => {
-        bot.on('message', async msg => {
-            const text = msg.text;
-            // user.state = 'phone'
-            //проверка телефона
-            user.phone = text
-            await user.save();
-            bot.sendMessage(chatId, `Спасибо. Вот ваша анкета: ${user.name} ${user.phone}`)
-        })
-    }
-    const formName = (user) => {
-        bot.on('message', async msg => {
-            try {
-                const text = msg.text;
-                user.state = 'name'
-                //проверка имени
-                user.name = text
-                await user.save();
 
-                return bot.sendMessage(chatId, `Теперь введи номер телефона`)
-
-            } catch (e) {
-                return bot.sendMessage(chatId, `ОШИБКААААА`)
-            }
-
-        })
+    const checkPhone = (itemElem) => {
+        // let checkCount = 0;
+        // if (itemElem[0] == "+" && itemElem.length == 12) {
+        //     checkCount = 1
+        // } else if (itemElem.length == 11) {
+        //     checkCount = 1
+        // }
+        return /[a-zа-яё]/.test(itemElem)
     }
-    try {
-        await sequelize.authenticate()
-        await sequelize.sync()
-    } catch (error) {
-        console.log('Подключение к бд сломалось', error);
+    const checkName = (itemElem) => {
+        return /\d/.test(itemElem);
     }
+
 
     bot.on('message', async msg => {
-        console.log(msg);
+        // await UserModel.drop()
         const text = msg.text;
         const chatId = msg.chat.id;
         try {
+            await sequelize.authenticate()
+            await sequelize.sync()
+        } catch (error) {
+            return bot.sendMessage(chatId, `Извините, у нас ведутся технические работы. Пожалуйста, зайдите чуть позже 😌`)
+        }
+        try {
             const user = await UserModel.findOne({ chatId })
             if (text === '/start') {
-                user.state = 'start'
-                await user.save()
-                return bot.sendMessage(chatId, `Привет! Введи свое ФИО`)
-            } else {
-                switch (user.state) {
-                    case 'start':
-                        formName(user)
-                        break;
-                    case 'name':
-                        formPhone(user)
-                        break;
-                    default:
-                        break;
+                user.state = 0
+                    user.phone = text
+                    await user.save()
+                    return bot.sendMessage(chatId, `Приветствуем Вас на борту 🚢 корабля "Командор"! 👋 Зарегистрируйтесь в чат-боте за 10 секунд и получите 100 БАЛЛОВ❗️ на карту "Копилка". Приступим! 🔥⬇️\n1️⃣ Введите Ваше ФИО`)
+
+            } else if (user.state == 0) {
+                const text = msg.text;
+                if (checkName(text)) {
+                    return bot.sendMessage(chatId, `Упс! Кажется, ФИО с ошибкой... попробуйте ввести снова 😉`)
+                } else {
+                    user.state = 1
+                    user.name = text
+                    await user.save();
+                    return bot.sendMessage(chatId, `2️⃣ Введите номер телефона, который привязан к карте "Копилка"`)
                 }
+
+
+            } else if (user.state == 1) {
+                const text = msg.text;
+                if (checkPhone(text)) {
+                    return bot.sendMessage(chatId, `Вы ввели номер с ошибкой, напишите ещё раз! 😊`)
+                } else {
+                    user.state = 2
+                    user.phone = text
+                    await user.save();
+                    return bot.sendMessage(chatId, `Благодарим Вас! 👍 Баллы поступят на карту "Копилка" в ближайшее время`)
+    
+                }
+                // user.state = 'phone'
+                //проверка телефона
                 
+
+            } else if (user.state == 2) {
+                await bot.sendMessage(chatId, `Не беспокойтесь! Ваши баллы уже в пути 😁 Если хотите, мы можем записать анкету заново.\nДля этого введите ⬇️\n/start`)
             }
-            // return bot.sendMessage(chatId, `Я тебя не понимаю, попробуй еще раз`)
+
         } catch (error) {
             await bot.sendMessage(chatId, "Произошла ошибка! " + error)
         }
