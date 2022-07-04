@@ -82,7 +82,6 @@ const start = async () => {
                     case 'name':
                         formPhone(user)
                         break;
-
                     default:
                         break;
                 }

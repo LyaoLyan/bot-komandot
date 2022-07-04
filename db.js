@@ -1,7 +1,6 @@
 const {Sequelize} = require('sequelize');
 
 module.exports = new Sequelize(
-    //смотри 26:40
     'bot_komandot',
     'root',
     'root',
