@@ -1,8 +1,19 @@
+const fetch = require('node-fetch');
 const TelegramApi = require('node-telegram-bot-api')
 const sequelize = require("./db")
 const UserModel = require("./models")
 const token = '5580876526:AAFQeKmBlqmXoPC5eZhwRa4vVRTELunTNz4'
 const bot = new TelegramApi(token, { polling: true })
+const fs = require('fs')
+
+// function to encode file data to base64 encoded string
+function base64_encode(file) {
+    // read binary data
+    var bitmap = fs.readFileSync(file);
+    // convert binary data to base64 encoded string
+    return new Buffer(bitmap).toString('base64');
+}
+
 // const options = {
 //     reply_markup: JSON.stringify({
 //         inline_keyboard: [
@@ -31,21 +42,16 @@ const bot = new TelegramApi(token, { polling: true })
 // }
 const start = async () => {
 
+
     const checkPhone = (itemElem) => {
-        // let checkCount = 0;
-        // if (itemElem[0] == "+" && itemElem.length == 12) {
-        //     checkCount = 1
-        // } else if (itemElem.length == 11) {
-        //     checkCount = 1
-        // }
         return /[a-zа-яё]/.test(itemElem)
     }
     const checkName = (itemElem) => {
         return /\d/.test(itemElem);
     }
 
-
     bot.on('message', async msg => {
+        // await sequelize.sync({force: true}) 
         // await UserModel.drop()
         const text = msg.text;
         const chatId = msg.chat.id;
@@ -56,14 +62,20 @@ const start = async () => {
             return bot.sendMessage(chatId, `Извините, у нас ведутся технические работы. Пожалуйста, зайдите чуть позже 😌`)
         }
         try {
+            // try {
+            // await UserModel.create({ chatId })
+            // const user = await UserModel.findOne({ chatId })
+            // } catch (error) {
             const user = await UserModel.findOne({ chatId })
+            // }
             if (text === '/start') {
                 user.state = 0
-                    user.phone = text
-                    await user.save()
-                    return bot.sendMessage(chatId, `Приветствуем Вас на борту 🚢 корабля "Командор"! 👋 Зарегистрируйтесь в чат-боте за 10 секунд и получите 100 БАЛЛОВ❗️ на карту "Копилка". Приступим! 🔥⬇️\n1️⃣ Введите Ваше ФИО`)
+                await user.save();
+                return bot.sendMessage(chatId, `Приветствуем Вас на борту 🚢 корабля "Командор"! 👋 Зарегистрируйтесь в чат-боте за 10 секунд и получите 100 БАЛЛОВ❗️ на карту "Копилка". Приступим! 🔥⬇️\n1️⃣ Введите Ваше ФИО`)
 
-            } else if (user.state == 0) {
+            } else if (text === '/give') {
+                return bot.sendPhoto(chatId, user.paycheck)
+            } else if (user.state === 0) {
                 const text = msg.text;
                 if (checkName(text)) {
                     return bot.sendMessage(chatId, `Упс! Кажется, ФИО с ошибкой... попробуйте ввести снова 😉`)
@@ -75,7 +87,7 @@ const start = async () => {
                 }
 
 
-            } else if (user.state == 1) {
+            } else if (user.state === 1) {
                 const text = msg.text;
                 if (checkPhone(text)) {
                     return bot.sendMessage(chatId, `Вы ввели номер с ошибкой, напишите ещё раз! 😊`)
@@ -83,15 +95,24 @@ const start = async () => {
                     user.state = 2
                     user.phone = text
                     await user.save();
-                    return bot.sendMessage(chatId, `Благодарим Вас! 👍 Баллы поступят на карту "Копилка" в ближайшее время`)
-    
-                }
-                // user.state = 'phone'
-                //проверка телефона
-                
+                    return bot.sendMessage(chatId, `Прикрепите фото`)
+                    // return bot.sendMessage(chatId, `Благодарим Вас! 👍 Баллы поступят на карту "Копилка" в ближайшее время`)
 
-            } else if (user.state == 2) {
-                await bot.sendMessage(chatId, `Не беспокойтесь! Ваши баллы уже в пути 😁 Если хотите, мы можем записать анкету заново.\nДля этого введите ⬇️\n/start`)
+                }
+            } else if (user.state === 2) {
+                // console.log(msg)
+                user.state = 3
+                // base64_encode(
+                // const url = `https://api.telegram.org/bot${token}/getFile?file_id=${msg.photo[2].file_id}`
+                const response = await fetch(`https://api.telegram.org/bot${token}/getFile?file_id=${msg.photo[2].file_id}`);
+                const data = await response.json();
+                const path = data.result.file_path
+                // console.log(data);
+
+                user.paycheck = base64_encode(`https://api.telegram.org/file/bot${token}/${path}`)
+                await user.save();
+                return bot.sendMessage(chatId, `${user.paycheck}`)
+                // await bot.sendMessage(chatId, `Не беспокойтесь! Ваши баллы уже в пути 😁 Если хотите, мы можем записать анкету заново.\nДля этого введите ⬇️\n/start`)
             }
 
         } catch (error) {
