@@ -2,11 +2,12 @@ const {Sequelize} = require('sequelize');
 
 module.exports = new Sequelize(
     'bot_komandot',
-    'root',
-    'root',
+    'bot_komandot_dev',
+    '53AZrLwSce',
     {
-        host: '109.71.13.150',
-        port: '6432',
+        host: 'localhost',
+        port: '5433',
         dialect: 'postgres',
+        logging: false
     }
 )
