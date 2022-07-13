@@ -6,10 +6,10 @@ const User = sequelize.define('user', {
   admin: {type: DataTypes.BOOLEAN, defaultValue: false},
   chatId: { type: DataTypes.STRING, unique: true },
   state: { type: DataTypes.INTEGER },
-  paycheck: { type: DataTypes.STRING, unique: true },
   name: { type: DataTypes.STRING },
   phone: { type: DataTypes.STRING, unique: true },
-  image: { type: DataTypes.STRING(1234) }
+  image: { type: DataTypes.STRING(1234) },
+  date: { type: DataTypes.BIGINT }
 },
   {
     tableName: 'users',

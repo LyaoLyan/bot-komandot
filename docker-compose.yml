@@ -5,7 +5,7 @@ services:
     container_name: postgres-bot-komandot
     image: postgres:latest
     ports:
-      - "5433:5432"
+      - "6432:6432"
     volumes:
       - /data/postgres:/data/postgres
     env_file:
