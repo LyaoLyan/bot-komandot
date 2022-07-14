@@ -138,8 +138,13 @@ const startFunc = async (user, chatId, msg) => {
 
 
 const profileFunc = async (user, chatId, msg) => {
-    const date = new Date(user.updatedAt)
-    return bot.sendMessage(chatId, `Ваш профиль\nID: ${user.id}\nФИО: ${user.name}\nТелефон: ${user.phone}`)
+    const file = `image/jpg;base64,${user.image}`;
+    const fileOpts = {
+        filename: 'image',
+        contentType: 'image/jpg',
+    };
+    bot.sendMessage(chatId, `Ваш профиль\nID: ${user.id}\nФИО: ${user.name}\nТелефон: ${user.phone}`)
+    return bot.sendPhoto(chatId, Buffer.from(file.substr(17), 'base64'), fileOpts);
 }
 
 const becomeAdmin = async (user, chatId, msg) => {
