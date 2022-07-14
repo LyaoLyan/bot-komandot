@@ -36,12 +36,8 @@ exports.calculate1 = async (bot, user, chatId, msg) => {
 exports.calculate2 = async (bot, user, chatId, msg) => {
     console.log(msg);
     user.state = 3;
-    let d = new Date();
-    console.log(d);
-    let y = new Date(d.getFullYear(), d.getMonth(), d.getDate());
-    console.log(y);
-    user.date = Number(y.getTime());
-    console.log(user.date);
+
+
     const image = await bot.downloadFile(msg.document.file_id, './');
     // console.log(msg);
 
@@ -49,7 +45,6 @@ exports.calculate2 = async (bot, user, chatId, msg) => {
 
     fs.unlink(`./${image}`, (err) => {
         if (err) throw err; //handle your error the way you want to;
-        console.log('path/file.txt was deleted');//or else the file will be deleted
     });
 
     user.image = test5;

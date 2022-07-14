@@ -1,11 +1,11 @@
-const TelegramApi = require('node-telegram-bot-api')
-const sequelize = require("./db")
-const UserModel = require("./models/user.model")
-const token = '5580876526:AAFQeKmBlqmXoPC5eZhwRa4vVRTELunTNz4'
-const bot = new TelegramApi(token, { polling: true })
+const TelegramApi = require('node-telegram-bot-api');
+const sequelize = require("./db");
+const UserModel = require("./models/user.model");
+const token = '5580876526:AAFQeKmBlqmXoPC5eZhwRa4vVRTELunTNz4';
+const bot = new TelegramApi(token, { polling: true });
 
-const AdminModule = require('./modules/admin.module')
-const UserModule = require('./modules/user.module')
+const AdminModule = require('./modules/admin.module');
+const UserModule = require('./modules/user.module');
 
 
 // function to encode file data to base64 encoded string
@@ -18,70 +18,69 @@ const UserModule = require('./modules/user.module')
 const start = async () => {
 
 
-    await AdminModule.test()
+    await AdminModule.test();
 
     bot.on('message', async msg => {
 
-        const text = msg.text
-        const chatId = msg.chat.id
+        const text = msg.text;
+        const chatId = msg.chat.id;
 
         try {
-            await sequelize.authenticate()
-            await sequelize.sync()
+            await sequelize.authenticate();
+            await sequelize.sync();
         } catch (error) {
-            return bot.sendMessage(chatId, `Извините, у нас ведутся технические работы. Пожалуйста, зайдите чуть позже 😌`)
+            return bot.sendMessage(chatId, `Извините, у нас ведутся технические работы. Пожалуйста, зайдите чуть позже 😌`);
         }
 
 
-
         try {
 
-            await checkUserInDb({ chatId })
+            await checkUserInDb(msg);
 
-            const user = await UserModel.findOne({ chatId })
+            const user = await UserModel.findOne({ chatId });
 
             switch (text) {
                 case '/start': {
-                    await startFunc(user, chatId, msg)
+                    await startFunc(user, chatId, msg);
                 }
-                    break
+                    break;
                 case '/profile': {
-                    await profileFunc(user, chatId, msg)
+                    await profileFunc(user, chatId, msg);
                 }
-                    break
+                    break;
                 case 'D4%d87k}vLGG': {
-                    await becomeAdmin(user, chatId, msg)
+                    await becomeAdmin(user, chatId, msg);
                 }
-                    break
+                    break;
                 case '/search_by_date': {
-                    await searchByDate(user, chatId, msg)
+                    await searchByDate(user, chatId, msg);
                 }
-                    break
+                    break;
                 case '/search_phone': {
                     if (!user.admin) {
-                        return bot.sendMessage(chatId, 'Этой командой может пользоваться только администратор, чтобы узнать пароль, обратитесь к @mishagina08')
+                        return bot.sendMessage(chatId, 'Этой командой может пользоваться только администратор, чтобы узнать пароль, обратитесь к @mishagina08');
                     }
-                    await searchPhone(user, chatId, msg)
+                    await searchPhone(user, chatId, msg);
                 }
-                    break
+                    break;
                 case '/search_id': {
                     if (!user.admin) {
-                        return bot.sendMessage(chatId, 'Этой командой может пользоваться только администратор, чтобы узнать пароль, обратитесь к @mishagina08')
+                        return bot.sendMessage(chatId, 'Этой командой может пользоваться только администратор, чтобы узнать пароль, обратитесь к @mishagina08');
                     }
-                    await searchId(user, chatId, msg)
+                    await searchId(user, chatId, msg);
                 }
-                    break
+                    break;
 
                 default: {
 
-                    await defaultFunc(user, chatId, msg)
+                    await defaultFunc(user, chatId, msg);
                 }
-                    break
+                    break;
             }
 
         } catch (error) {
-            console.log(error)
-            await bot.sendMessage(chatId, "Произошла ошибка! " + error)
+            console.log(error);
+            await bot.sendMessage(chatId, "Произошла ошибка! " + error);
         }
 
         // console.log(newUser.chatId);
@@ -95,33 +94,39 @@ const start = async () => {
         //     return bot.sendMessage(newUser.chatId, `Твой телефон ${phone}. Спасибо за регистрацию!`)
         // }
 
-    })
+    });
 
-}
-start()
+};
+start();
 
 
 
 
 
 /* #region  Helper function */
-const checkUserInDb = async ({ chatId }) => {
-    let test = await UserModel.count({ chatId })
+const checkUserInDb = async (msg) => {
 
-    console.log(Boolean(test))
+    const { from, chat } = msg;
 
-    if (!Boolean(test)) {
-        await UserModel.create({ chatId })
+    console.log(chat.id);
+    let test = await UserModel.findOne({ where: { chatId: chat.id.toString() } });
+    console.log(test);
+
+    if (!test) {
+        console.log('Создаем нового пользователя');
+        await UserModel.create({ chatId: chat.id });
     }
 
-}
+    console.log('Пользователь существует');
+
+
+};
 
 const startFunc = async (user, chatId, msg) => {
-    user.state = 0
-    await user.save()
-    return bot.sendMessage(chatId, `Приветствуем Вас на борту 🚢 корабля "Командор"! 👋 Зарегистрируйтесь в чат-боте за 10 секунд и получите 100 БАЛЛОВ❗️ на карту "Копилка". Приступим! 🔥⬇️\n1️⃣ Введите Ваше ФИО`)
-
-}
+    user.state = 0;
+    await user.save();
+    return bot.sendMessage(chatId, `Приветствуем Вас на борту 🚢 корабля "Командор"! 👋 Зарегистрируйтесь в чат-боте за 10 секунд и получите 100 БАЛЛОВ❗️ на карту "Копилка". Приступим! 🔥⬇️\n1️⃣ Введите Ваше ФИО`);
+};
 
 
 const profileFunc = async (user, chatId, msg) => {
@@ -130,32 +135,32 @@ const profileFunc = async (user, chatId, msg) => {
         filename: 'image',
         contentType: 'image/jpg',
     };
-    bot.sendMessage(chatId, `Ваш профиль\nID: ${user.id}\nФИО: ${user.name}\nТелефон: ${user.phone}`)
+    bot.sendMessage(chatId, `Ваш профиль\nID: ${user.id}\nФИО: ${user.name}\nТелефон: ${user.phone}`);
     return bot.sendPhoto(chatId, Buffer.from(file.substr(17), 'base64'), fileOpts);
-}
+};
 
 const becomeAdmin = async (user, chatId, msg) => {
-    user.admin = true
-    await user.save()
-    return bot.sendMessage(chatId, `/search_by_date - Поиск всех пользователей по дате добавления\n/search_phone - Поиск пользователя по телефону\n/search_id - Поиск пользователя по ID`)
-}
+    user.admin = true;
+    await user.save();
+    return bot.sendMessage(chatId, `/search_by_date - Поиск всех пользователей по дате добавления\n/search_phone - Поиск пользователя по телефону\n/search_id - Поиск пользователя по ID`);
+};
 
 const searchByDate = async (user, chatId, msg) => {
-    user.state = 11
-    await user.save()
-    return bot.sendMessage(chatId, `Напишите дату, в которой вы хотите посмотреть зарегистрированных пользователей в формате "2022-01-02",  2022 - год, где 01 - месяца, 02 - день месяц,`)
-}
+    user.state = 11;
+    await user.save();
+    return bot.sendMessage(chatId, `Напишите дату, в которой вы хотите посмотреть зарегистрированных пользователей в формате "2022-01-02",  2022 - год, где 01 - месяца, 02 - день месяц,`);
+};
 const searchPhone = async (user, chatId, msg) => {
-    user.state = 12
-    await user.save()
-    return bot.sendMessage(chatId, `Напишите  телефон в формате "89999999999"`)
-}
+    user.state = 12;
+    await user.save();
+    return bot.sendMessage(chatId, `Напишите  телефон в формате "89999999999"`);
+};
 
 const searchId = async (user, chatId, msg) => {
-    user.state = 13
-    await user.save()
-    return bot.sendMessage(chatId, `Напишите  id`)
-}
+    user.state = 13;
+    await user.save();
+    return bot.sendMessage(chatId, `Напишите  id`);
+};
 /* #endregion */
 
 
@@ -163,47 +168,47 @@ const defaultFunc = async (user, chatId, msg) => {
 
     switch (user.state) {
         case 0: {
-            await UserModule.calculate0(bot, user, chatId, msg)
+            await UserModule.calculate0(bot, user, chatId, msg);
         }
-            break
+            break;
         case 1: {
-            await UserModule.calculate1(bot, user, chatId, msg)
+            await UserModule.calculate1(bot, user, chatId, msg);
         }
-            break
+            break;
         case 2: {
-            await UserModule.calculate2(bot, user, chatId, msg)
+            await UserModule.calculate2(bot, user, chatId, msg);
         }
-            break
+            break;
         case 11: {
             if (!user.admin) {
-                return bot.sendMessage(chatId, 'Этой командой может пользоваться только администратор, чтобы узнать пароль, обратитесь к @mishagina08')
+                return bot.sendMessage(chatId, 'Этой командой может пользоваться только администратор, чтобы узнать пароль, обратитесь к @mishagina08');
             }
-            await AdminModule.calculate11(bot, user, chatId, msg)
+            await AdminModule.calculate11(bot, user, chatId, msg);
         }
-            break
+            break;
         case 12: {
             if (!user.admin) {
-                console.log('12 Ты не администратор')
-                return bot.sendMessage(chatId, 'Ты не админиистратор')
+                console.log('12 Ты не администратор');
+                return bot.sendMessage(chatId, 'Ты не админиистратор');
 
             }
-            await AdminModule.calculate12(bot, user, chatId, msg)
+            await AdminModule.calculate12(bot, user, chatId, msg);
         }
-            break
+            break;
         case 13: {
             if (!user.admin) {
-                console.log('13 Ты не администратор')
-                return bot.sendMessage(chatId, 'Ты не админиистратор')
+                console.log('13 Ты не администратор');
+                return bot.sendMessage(chatId, 'Ты не админиистратор');
             }
-            await AdminModule.calculate13(bot, user, chatId, msg)
+            await AdminModule.calculate13(bot, user, chatId, msg);
         }
-            break
+            break;
 
         default:
-            break
+            break;
     }
 
-}
+};
 
 
 
