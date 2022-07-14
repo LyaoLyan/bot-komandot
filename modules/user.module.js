@@ -34,23 +34,34 @@ exports.calculate1 = async (bot, user, chatId, msg) => {
 
 
 exports.calculate2 = async (bot, user, chatId, msg) => {
-    console.log(msg);
-    user.state = 3;
+    try {
+        
+   
+        console.log(msg);
+        user.state = 3;
 
 
-    const image = await bot.downloadFile(msg.document.file_id, './');
-    // console.log(msg);
+        const image = await bot.downloadFile(msg.document.file_id, './');
+        // console.log(msg);
 
-    const test5 = base64_encode(`./${image}`);
+        const test5 = base64_encode(`./${image}`);
 
-    fs.unlink(`./${image}`, (err) => {
-        if (err) throw err; //handle your error the way you want to;
-    });
+        fs.unlink(`./${image}`, (err) => {
+            if (err) throw err; //handle your error the way you want to;
+        });
 
-    user.image = test5;
+        user.image = test5;
 
-    await user.save();
-    return await bot.sendMessage(chatId, `Благодарим Вас! 👍 Баллы поступят на карту "Копилка" в ближайшее время`);
+        await user.save();
+        return await bot.sendMessage(chatId, `Благодарим Вас! 👍 Баллы поступят на карту "Копилка" в ближайшее время`);
+    } catch (err) {
+        if (err =="TypeError: Cannot read property 'file_id' of undefined") {
+            return await bot.sendMessage(chatId, `Тебе нужно прикрепить файл без сжатия!`);
+        } else {
+            return await bot.sendMessage(chatId, `Что-то пошло не так!`);
+        }
+        
+    }
 };
 /* #endregion */
 

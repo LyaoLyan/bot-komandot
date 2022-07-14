@@ -24,7 +24,7 @@ const start = async () => {
 
         const text = msg.text;
         const chatId = msg.chat.id;
-
+        bot.sendMessage(chatId, `Первый заход${chatId}`);
         try {
             await sequelize.authenticate();
             await sequelize.sync();
@@ -35,10 +35,10 @@ const start = async () => {
 
         try {
 
-            await checkUserInDb(msg);
+            await checkUserInDb(chatId, msg);
 
-            const user = await UserModel.findOne({ chatId });
-
+            const user = await UserModel.findOne({ where: { chatId: String(chatId) } });
+            bot.sendMessage(chatId, `${user.chatId}`);
             switch (text) {
                 case '/start': {
                     await startFunc(user, chatId, msg);
@@ -104,26 +104,26 @@ start();
 
 
 /* #region  Helper function */
-const checkUserInDb = async (msg) => {
-
+const checkUserInDb = async (id, msg) => {
+    bot.sendMessage(id, `${id}`);
     const { from, chat } = msg;
-
-    console.log(chat.id);
-    let test = await UserModel.findOne({ where: { chatId: chat.id.toString() } });
-    console.log(test);
+    console.log(id);
+    let test = await UserModel.findOne({ where: { chatId: String(id) } });
+    bot.sendMessage(id, `${test}`);
 
     if (!test) {
         console.log('Создаем нового пользователя');
-        await UserModel.create({ chatId: chat.id });
+        await UserModel.create({ chatId: id });
+
     }
-
+    test = await UserModel.findOne({ where: { chatId: String(id) } });
     console.log('Пользователь существует');
-
 
 };
 
 const startFunc = async (user, chatId, msg) => {
     user.state = 0;
+
     await user.save();
     return bot.sendMessage(chatId, `Приветствуем Вас на борту 🚢 корабля "Командор"! 👋 Зарегистрируйтесь в чат-боте за 10 секунд и получите 100 БАЛЛОВ❗️ на карту "Копилка". Приступим! 🔥⬇️\n1️⃣ Введите Ваше ФИО`);
 };

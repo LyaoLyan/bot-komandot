@@ -9,7 +9,6 @@ const User = sequelize.define('user', {
     name: { type: DataTypes.STRING },
     phone: { type: DataTypes.STRING, unique: true },
     image: { type: DataTypes.STRING(1234) },
-    date: { type: DataTypes.BIGINT }
 },
     {
         tableName: 'users',
