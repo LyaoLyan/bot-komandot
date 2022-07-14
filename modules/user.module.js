@@ -26,7 +26,7 @@ exports.calculate1 = async (bot, user, chatId, msg) => {
         user.state = 2;
         user.phone = text;
         await user.save();
-        return bot.sendMessage(chatId, `Прикрепите фото`);
+        return bot.sendMessage(chatId, `3️⃣ Прикрепите фото чека без сжатия изображения(уберите галочку)`);
         // return bot.sendMessage(chatId, `Благодарим Вас! 👍 Баллы поступят на карту "Копилка" в ближайшее время`)
 
     }
