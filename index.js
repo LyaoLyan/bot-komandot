@@ -4,8 +4,9 @@ const UserModel = require("./models")
 const token = '5580876526:AAFQeKmBlqmXoPC5eZhwRa4vVRTELunTNz4'
 const bot = new TelegramApi(token, { polling: true })
 const fs = require('fs')
-const { Image } = require('image-js');
 const AdminModule = require('./modules/admin.module')
+
+const { Op } = require("sequelize")
 
 // function to encode file data to base64 encoded string
 const base64_encode = (file) => {
@@ -156,7 +157,7 @@ const becomeAdmin = async (user, chatId, msg) => {
 const searchByDate = async (user, chatId, msg) => {
     user.state = 11
     await user.save()
-    return bot.sendMessage(chatId, `Напишите дату, в которой вы хотите посмотреть зарегистрированных пользователей в формате "01 02 2022", где 01 - день месяца, 02 - месяц, 2022 - год`)
+    return bot.sendMessage(chatId, `Напишите дату, в которой вы хотите посмотреть зарегистрированных пользователей в формате "2022-01-02",  2022 - год, где 01 - месяца, 02 - день месяц,`)
 }
 const searchPhone = async (user, chatId, msg) => {
     user.state = 12
@@ -196,14 +197,17 @@ const defaultFunc = async (user, chatId, msg) => {
             break
         case 12: {
             if (!user.admin) {
-                return console.log('12 Ты не администратор')
+                console.log('12 Ты не администратор')
+                return bot.sendMessage(chatId, 'Ты не админиистратор')
+
             }
             await calculate12(user, chatId, msg)
         }
             break
         case 13: {
             if (!user.admin) {
-                return console.log('13 Ты не администратор')
+                console.log('13 Ты не администратор')
+                return bot.sendMessage(chatId, 'Ты не админиистратор')
             }
             await calculate13(user, chatId, msg)
         }
@@ -216,27 +220,42 @@ const defaultFunc = async (user, chatId, msg) => {
 }
 
 
+const getEdgesOfDay = (date) => {
+    const startOfDay = new Date(date)
+    startOfDay.setUTCHours(0, 0, 0, 0)
+
+    const endOfDay = new Date(date)
+    endOfDay.setUTCHours(23, 59, 59, 999)
+
+    return { startOfDay, endOfDay }
+}
+
 
 /* #region  Admin function */
 const calculate11 = async (user, chatId, msg) => {
     var t = msg.text
-    bot.sendMessage(chatId, `Пожалуйста, подождите. Это может занять какое-то время`)
+
+    await bot.sendMessage(chatId, `Пожалуйста, подождите. Это может занять какое-то время`)
+
     if (checkDate(t)) return bot.sendMessage(chatId, `Неправильно введена дата, убедитесь что дата в формате "01 02 2022"`)
-    var day = Number(t.slice(0, 2)) + 1
-    var month = Number(t.slice(3, 5))
-    var year = Number(t.slice(-4))
-    user.state = 12
-    await user.save()
-    const below = Number(new Date(year, month - 1, day).getTime())
-    const above = Number(new Date(year, month - 1, day + 1).getTime())
-    const users = await UserModel.findAll({
-        where: { date: { [sequelize.between]: [below, above] } },
+
+    const { startOfDay, endOfDay } = getEdgesOfDay(msg.text)
+
+    const usersRaw = await UserModel.findAll({
+        where: {
+            createdAt: {
+                [Op.lt]: `${endOfDay.toISOString()}`,
+                [Op.gt]: `${startOfDay.toISOString()}`
+            }
+        },
     })
-    let list
-    users.forEach((us) => {
-        list += `${us.id} ${us.name} ${us.phone}\n`
+
+    let usersStrings = usersRaw.map(item => {
+        const { id, name, phone } = item
+        return `${id} | ${name} ${phone}`
     })
-    return bot.sendMessage(chatId, `${list}`)
+
+    return await bot.sendMessage(chatId, usersStrings.join('\n'))
 }
 
 
@@ -315,7 +334,7 @@ const calculate2 = async (user, chatId, msg) => {
     console.log(y);
     user.date = Number(y.getTime());
     console.log(user.date);
-    const image = await bot.downloadFile(msg.photo[2].file_id, './')
+    const image = await bot.downloadFile(msg.document.file_id, './')
     // console.log(msg);
 
     const test5 = base64_encode(`./${image}`)
