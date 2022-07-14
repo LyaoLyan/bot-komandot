@@ -1,33 +1,19 @@
 const TelegramApi = require('node-telegram-bot-api')
 const sequelize = require("./db")
-const UserModel = require("./models")
+const UserModel = require("./models/user.model")
 const token = '5580876526:AAFQeKmBlqmXoPC5eZhwRa4vVRTELunTNz4'
 const bot = new TelegramApi(token, { polling: true })
-const fs = require('fs')
-const AdminModule = require('./modules/admin.module')
 
-const { Op } = require("sequelize")
+const AdminModule = require('./modules/admin.module')
+const UserModule = require('./modules/user.module')
+
 
 // function to encode file data to base64 encoded string
-const base64_encode = (file) => {
-    // read binary data
-    var bitmap = fs.readFileSync(file)
-    // convert binary data to base64 encoded string
-    return new Buffer(bitmap).toString('base64')
-}
 
 
 
-const checkDate = (itemElem) => {
-    return (/[a-zа-яё]/.test(itemElem) || itemElem.length != 10)
-}
 
-const checkPhone = (itemElem) => {
-    return (/[a-zа-яё]/.test(itemElem))
-}
-const checkName = (itemElem) => {
-    return /\d/.test(itemElem)
-}
+
 
 const start = async () => {
 
@@ -177,22 +163,22 @@ const defaultFunc = async (user, chatId, msg) => {
 
     switch (user.state) {
         case 0: {
-            await calculate0(user, chatId, msg)
+            await UserModule.calculate0(bot, user, chatId, msg)
         }
             break
         case 1: {
-            await calculate1(user, chatId, msg)
+            await UserModule.calculate1(bot, user, chatId, msg)
         }
             break
         case 2: {
-            await calculate2(user, chatId, msg)
+            await UserModule.calculate2(bot, user, chatId, msg)
         }
             break
         case 11: {
             if (!user.admin) {
                 return bot.sendMessage(chatId, 'Этой командой может пользоваться только администратор, чтобы узнать пароль, обратитесь к @mishagina08')
             }
-            await calculate11(user, chatId, msg)
+            await AdminModule.calculate11(bot, user, chatId, msg)
         }
             break
         case 12: {
@@ -201,7 +187,7 @@ const defaultFunc = async (user, chatId, msg) => {
                 return bot.sendMessage(chatId, 'Ты не админиистратор')
 
             }
-            await calculate12(user, chatId, msg)
+            await AdminModule.calculate12(bot, user, chatId, msg)
         }
             break
         case 13: {
@@ -209,7 +195,7 @@ const defaultFunc = async (user, chatId, msg) => {
                 console.log('13 Ты не администратор')
                 return bot.sendMessage(chatId, 'Ты не админиистратор')
             }
-            await calculate13(user, chatId, msg)
+            await AdminModule.calculate13(bot, user, chatId, msg)
         }
             break
 
@@ -220,133 +206,7 @@ const defaultFunc = async (user, chatId, msg) => {
 }
 
 
-const getEdgesOfDay = (date) => {
-    const startOfDay = new Date(date)
-    startOfDay.setUTCHours(0, 0, 0, 0)
-
-    const endOfDay = new Date(date)
-    endOfDay.setUTCHours(23, 59, 59, 999)
-
-    return { startOfDay, endOfDay }
-}
 
 
-/* #region  Admin function */
-const calculate11 = async (user, chatId, msg) => {
-    var t = msg.text
-
-    await bot.sendMessage(chatId, `Пожалуйста, подождите. Это может занять какое-то время`)
-
-    if (checkDate(t)) return bot.sendMessage(chatId, `Неправильно введена дата, убедитесь что дата в формате "01 02 2022"`)
-
-    const { startOfDay, endOfDay } = getEdgesOfDay(msg.text)
-
-    const usersRaw = await UserModel.findAll({
-        where: {
-            createdAt: {
-                [Op.lt]: `${endOfDay.toISOString()}`,
-                [Op.gt]: `${startOfDay.toISOString()}`
-            }
-        },
-    })
-
-    let usersStrings = usersRaw.map(item => {
-        const { id, name, phone } = item
-        return `${id} | ${name} ${phone}`
-    })
-
-    return await bot.sendMessage(chatId, usersStrings.join('\n'))
-}
 
 
-const calculate12 = async (user, chatId, msg) => {
-    try {
-        const client = await UserModel.findOne({ where: { phone: msg.text } })
-        const file = `image/jpg;base64,${client.image}`;
-        const fileOpts = {
-            filename: 'image',
-            contentType: 'image/jpg',
-        };
-        bot.sendMessage(chatId, `id: ${user.id} name: ${user.name} phone: ${user.phone}`)
-        return bot.sendPhoto(chatId, Buffer.from(file.substr(17), 'base64'), fileOpts);
-    } catch {
-        return bot.sendMessage(chatId, `Что-то пошло не так. Ты уверен, что корректно ввел телефон?`)
-    }
-}
-
-
-const calculate13 = async (user, chatId, msg) => {
-    try {
-        const client = await UserModel.findByPk(Number(msg.text))
-        const file = `image/jpg;base64,${client.image}`;
-        const fileOpts = {
-            filename: 'image',
-            contentType: 'image/jpg',
-        };
-
-        bot.sendMessage(chatId, `id: ${user.id} name: ${user.name} phone: ${user.phone} `)
-        return bot.sendPhoto(chatId, Buffer.from(file.substr(17), 'base64'), fileOpts);
-        // bot.sendMessage(chatId, `data:image/jpg;base64,${client.image}`)
-    } catch {
-        return bot.sendMessage(chatId, `Что-то пошло не так. Ты уверен, что корректно ввел ID?`)
-    }
-
-}
-/* #endregion */
-
-
-/* #region  User function */
-const calculate0 = async (user, chatId, msg) => {
-    const text = msg.text
-    if (checkName(text)) {
-        return bot.sendMessage(chatId, `Упс! Кажется, ФИО с ошибкой... попробуйте ввести снова 😉. Номер нужно ввести без +7 в начале в формате "89999999999"`)
-    } else {
-        user.state = 1
-        user.name = text
-        await user.save()
-        return bot.sendMessage(chatId, `2️⃣ Введите номер телефона, который привязан к карте "Копилка", в формате "89999999999"`)
-    }
-
-}
-
-
-const calculate1 = async (user, chatId, msg) => {
-    const text = msg.text
-    if (checkPhone(text)) {
-        return bot.sendMessage(chatId, `Вы ввели номер с ошибкой, напишите ещё раз! 😊`)
-    } else {
-        user.state = 2
-        user.phone = text
-        await user.save()
-        return bot.sendMessage(chatId, `Прикрепите фото`)
-        // return bot.sendMessage(chatId, `Благодарим Вас! 👍 Баллы поступят на карту "Копилка" в ближайшее время`)
-
-    }
-}
-
-
-const calculate2 = async (user, chatId, msg) => {
-    console.log(msg);
-    user.state = 3
-    let d = new Date()
-    console.log(d);
-    let y = new Date(d.getFullYear(), d.getMonth(), d.getDate())
-    console.log(y);
-    user.date = Number(y.getTime());
-    console.log(user.date);
-    const image = await bot.downloadFile(msg.document.file_id, './')
-    // console.log(msg);
-
-    const test5 = base64_encode(`./${image}`)
-
-    fs.unlink(`./${image}`, (err) => {
-        if (err) throw err //handle your error the way you want to;
-        console.log('path/file.txt was deleted')//or else the file will be deleted
-    })
-
-    user.image = test5
-
-    await user.save()
-    return await bot.sendMessage(chatId, `Благодарим Вас! 👍 Баллы поступят на карту "Копилка" в ближайшее время`)
-}
-/* #endregion */
