@@ -40,7 +40,6 @@ const start = async () => {
 
         const text = msg.text;
         const chatId = msg.chat.id;
-        bot.sendMessage(chatId, `Первый заход${chatId}`);
         try {
             await sequelize.authenticate();
             await sequelize.sync();
@@ -54,7 +53,7 @@ const start = async () => {
             await checkUserInDb(chatId, msg);
 
             const user = await UserModel.findOne({ where: { chatId: String(chatId) } });
-            bot.sendMessage(chatId, `${user.chatId}`);
+
             switch (text) {
                 case '/start': {
                     await startFunc(user, chatId, msg);
@@ -86,7 +85,13 @@ const start = async () => {
                     await searchId(user, chatId, msg);
                 }
                     break;
-
+                case '/send_message': {
+                    if (!user.admin) {
+                        return bot.sendMessage(chatId, 'Этой командой может пользоваться только администратор, чтобы узнать пароль, обратитесь к @mishagina08');
+                    }
+                    await sendMessageFromAdmin(user, chatId, msg);
+                }
+                    break;
                 default: {
 
                     await defaultFunc(user, chatId, msg);
@@ -96,7 +101,7 @@ const start = async () => {
 
         } catch (error) {
             console.log(error)
-            await bot.sendMessage(chatId, "Что-то пошло не так!")
+            await bot.sendMessage(chatId, "Что-то пошло не так! Обратитесь в тех. поддержку")
         }
 
 
@@ -122,11 +127,10 @@ start();
 
 /* #region  Helper function */
 const checkUserInDb = async (id, msg) => {
-    bot.sendMessage(id, `${id}`);
+
     const { from, chat } = msg;
     console.log(id);
     let test = await UserModel.findOne({ where: { chatId: String(id) } });
-    bot.sendMessage(id, `${test}`);
 
     if (!test) {
         console.log('Создаем нового пользователя');
@@ -159,27 +163,30 @@ const profileFunc = async (user, chatId, msg) => {
 const becomeAdmin = async (user, chatId, msg) => {
     user.admin = true;
     await user.save();
-    return bot.sendMessage(chatId, `/search_by_date - Поиск всех пользователей по дате добавления\n/search_phone - Поиск пользователя по телефону\n/search_id - Поиск пользователя по ID`);
+    return bot.sendMessage(chatId, `Добро пожаловать! Для начала работы введите необходимую команду: \n/search_by_date - Поиск ID пользователей по дате добавления\n/search_phone - Поиск пользователя по телефону\n/search_id - Поиск пользователя по ID\n/send_message - Отправить сообщение пользователям по ID`);
 };
 
 const searchByDate = async (user, chatId, msg) => {
     user.state = 11;
     await user.save();
-    return bot.sendMessage(chatId, `Напишите дату, в которой вы хотите посмотреть зарегистрированных пользователей в формате "2022-01-02",  2022 - год, где 01 - месяца, 02 - день месяц,`);
+    return bot.sendMessage(chatId, `Чтобы получить информацию о зарегистрированных пользователях по дате добавления, введите интересующую Вас дату в формате 2022-01-02, где 2022 - год, 01 - месяц, 02 – день.`);
 };
 const searchPhone = async (user, chatId, msg) => {
     user.state = 12;
     await user.save();
-    return bot.sendMessage(chatId, `Напишите  телефон в формате "89999999999"`);
+    return bot.sendMessage(chatId, `Пожалуйста, введите номер телефона пользователя в формате "89999999999".`);
 };
-
 const searchId = async (user, chatId, msg) => {
     user.state = 13;
     await user.save();
-    return bot.sendMessage(chatId, `Напишите  id`);
+    return bot.sendMessage(chatId, `Пожалуйста, введите ID пользователя, который Вас интересует.`);
 };
 /* #endregion */
-
+const sendMessageFromAdmin = async (user, chatId, msg) => {
+    user.state = 14;
+    await user.save();
+    return bot.sendMessage(chatId, `Напишите id пользователей через пробел, которым хотите отправить сообщение и сообщение через /. Пример:\n12 8 4 2 6 / Привет!`);
+}
 
 const defaultFunc = async (user, chatId, msg) => {
 
@@ -198,7 +205,7 @@ const defaultFunc = async (user, chatId, msg) => {
             break;
         case 11: {
             if (!user.admin) {
-                return bot.sendMessage(chatId, 'Этой командой может пользоваться только администратор, чтобы узнать пароль, обратитесь к @mishagina08');
+                return bot.sendMessage(chatId, 'Упс! Этой командой могут пользоваться только администраторы. Похоже, Вы не из их числа. Чтобы исправить это, обратитесь к @mishagina08');
             }
             await AdminModule.calculate11(bot, user, chatId, msg);
         }
@@ -207,7 +214,7 @@ const defaultFunc = async (user, chatId, msg) => {
             if (!user.admin) {
 
                 console.log('12 Ты не администратор');
-                return bot.sendMessage(chatId, 'Ты не админиистратор');
+                return bot.sendMessage(chatId, 'Упс! Этой командой могут пользоваться только администраторы. Похоже, Вы не из их числа. Чтобы исправить это, обратитесь к @mishagina08');
             }
             await AdminModule.calculate12(bot, user, chatId, msg);
         }
@@ -215,12 +222,19 @@ const defaultFunc = async (user, chatId, msg) => {
         case 13: {
             if (!user.admin) {
                 console.log('13 Ты не администратор');
-                return bot.sendMessage(chatId, 'Ты не админиистратор');
+                return bot.sendMessage(chatId, 'Упс! Этой командой могут пользоваться только администраторы. Похоже, Вы не из их числа. Чтобы исправить это, обратитесь к @mishagina08');
             }
             await AdminModule.calculate13(bot, user, chatId, msg);
         }
             break;
-
+        case 14: {
+            if (!user.admin) {
+                console.log('13 Ты не администратор');
+                return bot.sendMessage(chatId, 'Упс! Этой командой могут пользоваться только администраторы. Похоже, Вы не из их числа. Чтобы исправить это, обратитесь к @mishagina08');
+            }
+            await AdminModule.calculate14(bot, user, chatId, msg);
+        }
+            break;
         default:
             break;
     }
@@ -228,154 +242,4 @@ const defaultFunc = async (user, chatId, msg) => {
 };
 
 
-const getEdgesOfDay = (date) => {
-    const startOfDay = new Date(date)
-    startOfDay.setUTCHours(0, 0, 0, 0)
 
-    const endOfDay = new Date(date)
-    endOfDay.setUTCHours(23, 59, 59, 999)
-
-    return { startOfDay, endOfDay }
-}
-
-/* #region  Admin function */
-const calculate11 = async (user, chatId, msg) => {
-    try {
-
-
-        var t = msg.text
-
-        await bot.sendMessage(chatId, `Пожалуйста, подождите. Это может занять какое-то время`)
-
-        if (checkDate(t)) return bot.sendMessage(chatId, `Неправильно введена дата, убедитесь что дата в формате "2022-01-02"`)
-
-        const { startOfDay, endOfDay } = getEdgesOfDay(msg.text)
-
-        const usersRaw = await UserModel.findAll({
-            where: {
-                createdAt: {
-                    [Op.lt]: `${endOfDay.toISOString()}`,
-                    [Op.gt]: `${startOfDay.toISOString()}`
-                }
-            },
-        })
-
-        let usersStrings = usersRaw.map(item => {
-            const { id, name, phone } = item
-            return `${id} | ${name} ${phone}`
-        })
-
-        return await bot.sendMessage(chatId, usersStrings.join('\n'))
-    } catch (error) {
-        if (error == "Error: ETELEGRAM: 400 Bad Request: message text is empty") {
-            return await bot.sendMessage(chatId, `Нет пользователей, зарегистрированных в этот день`)
-        } else {
-            return await bot.sendMessage(chatId, `Что-то пошло не так. Ты уверен, что корректно ввел да?`)
-        }
-
-    }
-}
-
-
-const calculate12 = async (user, chatId, msg) => {
-    try {
-        const client = await UserModel.findOne({ where: { phone: msg.text } })
-        const file = `image/jpg;base64,${client.image}`;
-        const fileOpts = {
-            filename: 'image',
-            contentType: 'image/jpg',
-        };
-        bot.sendMessage(chatId, `${user.id} | ${user.name} ${user.phone}`)
-        return bot.sendPhoto(chatId, Buffer.from(file.substr(17), 'base64'), fileOpts);
-    } catch {
-        if (er == "TypeError: Cannot read properties of null (reading 'image')") {
-            return bot.sendMessage(chatId, `Пользователя с таким номером телефона не существует`)
-        } else {
-            return bot.sendMessage(chatId, `Что-то пошло не так. Ты уверен, что корректно ввел телефон?`)
-        }
-    }
-}
-
-
-const calculate13 = async (user, chatId, msg) => {
-    try {
-        const client = await UserModel.findByPk(Number(msg.text))
-        const file = `image/jpg;base64,${client.image}`;
-        const fileOpts = {
-            filename: 'image',
-            contentType: 'image/jpg',
-        };
-
-        bot.sendMessage(chatId, `${user.id} | ${user.name} ${user.phone}`)
-        return bot.sendPhoto(chatId, Buffer.from(file.substr(17), 'base64'), fileOpts);
-    } catch (er) {
-        if (er == "TypeError: Cannot read properties of null (reading 'image')") {
-            return bot.sendMessage(chatId, `Пользователя с таким ID не существует`)
-        } else {
-            return bot.sendMessage(chatId, `Что-то пошло не так. Ты уверен, что корректно ввел ID?`)
-        }
-    }
-
-}
-/* #endregion */
-
-
-/* #region  User function */
-const calculate0 = async (user, chatId, msg) => {
-    const text = msg.text
-    if (checkName(text)) {
-        return bot.sendMessage(chatId, `Упс! Кажется, ФИО с ошибкой... попробуйте ввести снова 😉. Номер нужно ввести без +7 в начале в формате "89999999999"`)
-    } else {
-        user.state = 1
-        user.name = text
-        await user.save()
-        return bot.sendMessage(chatId, `2️⃣ Введите номер телефона, который привязан к карте "Копилка", в формате "89999999999"`)
-    }
-
-}
-
-
-const calculate1 = async (user, chatId, msg) => {
-    const text = msg.text
-    if (checkPhone(text)) {
-        return bot.sendMessage(chatId, `Вы ввели номер с ошибкой, напишите ещё раз! 😊`)
-    } else {
-        user.state = 2
-        user.phone = text
-        await user.save()
-        return bot.sendMessage(chatId, ``)
-        // return bot.sendMessage(chatId, `Благодарим Вас! 👍 Баллы поступят на карту "Копилка" в ближайшее время`)
-
-    }
-}
-
-
-const calculate2 = async (user, chatId, msg) => {
-    try {
-        console.log(msg);
-        user.state = 3
-        let d = new Date()
-        console.log(d);
-        let y = new Date(d.getFullYear(), d.getMonth(), d.getDate())
-        console.log(y);
-        user.date = Number(y.getTime());
-        console.log(user.date);
-        const image = await bot.downloadFile(msg.document.file_id, './')
-        // console.log(msg);
-
-        const test5 = base64_encode(`./${image}`)
-
-        fs.unlink(`./${image}`, (err) => {
-            if (err) throw err //handle your error the way you want to;
-            console.log('path/file.txt was deleted')//or else the file will be deleted
-        })
-
-        user.image = test5
-
-        await user.save()
-        return await bot.sendMessage(chatId, `Благодарим Вас! 👍 Баллы поступят на карту "Копилка" в ближайшее время`)
-    } catch (error) {
-
-    }
-}
-/* #endregion */

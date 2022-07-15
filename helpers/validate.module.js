@@ -3,7 +3,8 @@ exports.checkDate = (itemElem) => {
 };
 
 exports.checkPhone = (itemElem) => {
-    return (/[a-zа-яё]/.test(itemElem));
+    
+    return (/[a-zа-яё]/.test(itemElem) || itemElem.length !=11);
 };
 exports.checkName = (itemElem) => {
     return /\d/.test(itemElem);
