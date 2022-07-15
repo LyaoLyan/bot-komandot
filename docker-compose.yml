@@ -1,0 +1,20 @@
+version: "3"
+services:
+  # Databases
+  postgres:
+    container_name: postgres-bot-komandot
+    image: postgres:latest
+    ports:
+      - "6432:6432"
+    volumes:
+      - /data/postgres:/data/postgres
+    env_file:
+      - docker.env
+    networks:
+      - bot_komandot
+    restart: always
+
+
+networks:
+  bot_komandot:
+    driver: bridge

@@ -1,147 +1,109 @@
-const fetch = require('node-fetch');
-const TelegramApi = require('node-telegram-bot-api')
-const sequelize = require("./db")
-const UserModel = require("./models")
-const token = '5580876526:AAFQeKmBlqmXoPC5eZhwRa4vVRTELunTNz4'
-const bot = new TelegramApi(token, { polling: true })
-const fs = require('fs')
-var http = require("https");
 
+const TelegramApi = require('node-telegram-bot-api');
+const sequelize = require("./db");
+const UserModel = require("./models/user.model");
+const token = '5580876526:AAFQeKmBlqmXoPC5eZhwRa4vVRTELunTNz4';
+const bot = new TelegramApi(token, { polling: true });
 
+const AdminModule = require('./modules/admin.module');
+const UserModule = require('./modules/user.module');
+
+const { Op } = require("sequelize")
 
 // function to encode file data to base64 encoded string
-function base64_encode(file) {
+const base64_encode = (file) => {
     // read binary data
-    var bitmap = fs.readFileSync(file);
+    var bitmap = fs.readFileSync(file)
     // convert binary data to base64 encoded string
-    return new Buffer(bitmap).toString('base64');
+    return new Buffer(bitmap).toString('base64')
+}
+
+
+
+const checkDate = (itemElem) => {
+    return (/[a-zа-яё]/.test(itemElem) || itemElem.length != 10)
+}
+
+const checkPhone = (itemElem) => {
+    return (/[a-zа-яё]/.test(itemElem))
+}
+const checkName = (itemElem) => {
+    return /\d/.test(itemElem)
 }
 
 const start = async () => {
-    const checkDate = (itemElem) => {
-        return (/[a-zа-яё]/.test(itemElem) || itemElem.length > 10 || itemElem.length < 8)
-    }
 
-    const checkPhone = (itemElem) => {
-        return (/[a-zа-яё]/.test(itemElem) || itemElem.length != 11)
-    }
-    const checkName = (itemElem) => {
-        return /\d/.test(itemElem);
-    }
+
+    await AdminModule.test();
 
     bot.on('message', async msg => {
-        // await sequelize.sync({force: true}) 
-        // await UserModel.drop()
+
         const text = msg.text;
         const chatId = msg.chat.id;
-        // let user;
         try {
-            await sequelize.authenticate()
-            await sequelize.sync()
+            await sequelize.authenticate();
+            await sequelize.sync();
         } catch (error) {
-            return bot.sendMessage(chatId, `Извините, у нас ведутся технические работы. Пожалуйста, зайдите чуть позже 😌`)
+            return bot.sendMessage(chatId, `Извините, у нас ведутся технические работы. Пожалуйста, зайдите чуть позже 😌`);
         }
 
 
-
         try {
-            const user = await UserModel.findOne({ chatId })
 
-            if (text === '/start') {
-                user.state = 0
-                await user.save();
-                return bot.sendMessage(chatId, `Приветствуем Вас на борту 🚢 корабля "Командор"! 👋 Зарегистрируйтесь в чат-боте за 10 секунд и получите 100 БАЛЛОВ❗️ на карту "Копилка". Приступим! 🔥⬇️\n1️⃣ Введите Ваше ФИО`)
+            await checkUserInDb(chatId, msg);
 
-            } else if (text === '/profile') {
-                const date = new Date(user.updatedAt)
-                return bot.sendMessage(chatId, `Ваш профиль\nID: ${user.id}\nФИО: ${user.name}\nТелефон: ${user.phone}`)
-            } else if (text === 'D4%d87k}vLGG') {
-                user.admin = true
-                user.state = 11
-                await user.save()
-                return bot.sendMessage(chatId, `Напишите дату, в которой вы хотите посмотреть зарегистрированных пользователей в формате "1 2 2022", где 1 - день месяца, 2 - месяц, 2022 - год`)
-            } else if (user.admin && user.state === 11) { 
-                bot.sendMessage(chatId, `Пожалуйста, подождите. Это может занять какое-то время`)
-                if(checkDate(text)) return bot.sendMessage(chatId, `Неправильно введена дата, убедитесь что дата в формате "1 2 2022"`)
-                var day = text.slice(0, 1);
-                var month = text.slice(2, 3)
-                var year = text.slice(-4);
-                user.state = 12
-                await user.save()
-                const below = new Date(year, month-1, day);
-                const above = new Date(year, month-1, day+1);
-                const users = await UserModel.findAll({
-                    where: { updatedAt: {[sequelize.between] : [below, above]} },
-                });
-                let list;
-                users.forEach((us) => {
-                    list += `${us.id} ${us.name} ${us.phone}\n`
-                  });
-                return sendMessage(chatId, `${list}`)
-            } else if (user.admin && text === '/search_phone') {
-                user.state = 12
-                await user.save()
-                return bot.sendMessage(chatId, `Напишите  телефон в формате "89999999999"`)
+            const user = await UserModel.findOne({ where: { chatId: String(chatId) } });
 
-            } else if (user.admin && user.state === 12) {
-                const client = await UserModel.findOne({ where: { phone: text } });
-                //а если не найдет?
-                return bot.sendMessage(chatId, `id:${user.id}\nname:${user.name}\nphone:${user.phone}`)
-            } else if (user.admin && text === '/search_id') {
-                user.state = 13
-                await user.save()
-                return bot.sendMessage(chatId, `Напишите  id`)
-            } else if (user.admin && user.state === 13) {
-                const client = await UserModel.findOne({ where: { id: text } });
-                //а если не найдет?
-                return bot.sendMessage(chatId, `id:${user.id} name:${user.name} phone:${user.phone} `)
-            } else if (user.state === 0) {
-                const text = msg.text;
-                if (checkName(text)) {
-                    return bot.sendMessage(chatId, `Упс! Кажется, ФИО с ошибкой... попробуйте ввести снова 😉. Номер нужно ввести без +7 в начале в формате "89999999999"`)
-                } else {
-                    user.state = 1
-                    user.name = text
-                    await user.save();
-                    return bot.sendMessage(chatId, `2️⃣ Введите номер телефона, который привязан к карте "Копилка", в формате "89999999999"`)
+            switch (text) {
+                case '/start': {
+                    await startFunc(user, chatId, msg);
                 }
-
-
-            } else if (user.state === 1) {
-                const text = msg.text;
-                if (checkPhone(text)) {
-                    return bot.sendMessage(chatId, `Вы ввели номер с ошибкой, напишите ещё раз! 😊`)
-                } else {
-                    user.state = 2
-                    user.phone = text
-                    await user.save();
-                    return bot.sendMessage(chatId, `Прикрепите фото`)
-                    // return bot.sendMessage(chatId, `Благодарим Вас! 👍 Баллы поступят на карту "Копилка" в ближайшее время`)
-
+                    break;
+                case '/profile': {
+                    await profileFunc(user, chatId, msg);
                 }
-            } else if (user.state === 2) {
-                // console.log(msg)
-                user.state = 3
-                // base64_encode(
-                // const url = `https://api.telegram.org/bot${token}/getFile?file_id=${msg.photo[2].file_id}`
-                const response = await fetch(`https://api.telegram.org/bot${token}/getFile?file_id=${msg.photo[2].file_id}`);
-                const data = await response.json();
-                const path = data.result.file_path
-                // download(`https://api.telegram.org/bot${token}/${path}`, 'file.jpg')
-                const file = fs.createWriteStream("file.jpg");
-                const request = http.get(`https://api.telegram.org/bot${token}/${path}`, function (response) {
-                    response.pipe(file);
-                });
+                    break;
+                case 'D4%d87k}vLGG': {
+                    await becomeAdmin(user, chatId, msg);
+                }
+                    break;
+                case '/search_by_date': {
+                    await searchByDate(user, chatId, msg);
+                }
+                    break;
+                case '/search_phone': {
+                    if (!user.admin) {
+                        return bot.sendMessage(chatId, 'Этой командой может пользоваться только администратор, чтобы узнать пароль, обратитесь к @mishagina08');
+                    }
+                    await searchPhone(user, chatId, msg);
+                }
+                    break;
+                case '/search_id': {
+                    if (!user.admin) {
+                        return bot.sendMessage(chatId, 'Этой командой может пользоваться только администратор, чтобы узнать пароль, обратитесь к @mishagina08');
+                    }
+                    await searchId(user, chatId, msg);
+                }
+                    break;
+                case '/send_message': {
+                    if (!user.admin) {
+                        return bot.sendMessage(chatId, 'Этой командой может пользоваться только администратор, чтобы узнать пароль, обратитесь к @mishagina08');
+                    }
+                    await sendMessageFromAdmin(user, chatId, msg);
+                }
+                    break;
+                default: {
 
-                user.paycheck = base64_encode('file.jpg')
-                await user.save();
-                return bot.sendMessage(chatId, `${user.paycheck}`)
-                // await bot.sendMessage(chatId, `Не беспокойтесь! Ваши баллы уже в пути 😁 Если хотите, мы можем записать анкету заново.\nДля этого введите ⬇️\n/start`)
+                    await defaultFunc(user, chatId, msg);
+                }
+                    break;
             }
 
         } catch (error) {
-            await bot.sendMessage(chatId, "Произошла ошибка! " + error)
+            console.log(error)
+            await bot.sendMessage(chatId, "Что-то пошло не так! Обратитесь в тех. поддержку")
         }
+
 
         // console.log(newUser.chatId);
 
@@ -154,7 +116,130 @@ const start = async () => {
         //     return bot.sendMessage(newUser.chatId, `Твой телефон ${phone}. Спасибо за регистрацию!`)
         // }
 
-    })
+    });
 
+};
+start();
+
+
+
+
+
+/* #region  Helper function */
+const checkUserInDb = async (id, msg) => {
+
+    const { from, chat } = msg;
+    console.log(id);
+    let test = await UserModel.findOne({ where: { chatId: String(id) } });
+
+    if (!test) {
+        console.log('Создаем нового пользователя');
+        await UserModel.create({ chatId: id });
+
+    }
+    test = await UserModel.findOne({ where: { chatId: String(id) } });
+    console.log('Пользователь существует');
+
+};
+
+const startFunc = async (user, chatId, msg) => {
+    user.state = 0;
+
+    await user.save();
+    return bot.sendMessage(chatId, `Приветствуем Вас на борту 🚢 корабля "Командор"! 👋 Зарегистрируйтесь в чат-боте за 10 секунд и получите 100 БАЛЛОВ❗️ на карту "Копилка". Приступим! 🔥⬇️\n1️⃣ Введите Ваше ФИО`);
+};
+
+
+const profileFunc = async (user, chatId, msg) => {
+    const file = `image/jpg;base64,${user.image}`;
+    const fileOpts = {
+        filename: 'image',
+        contentType: 'image/jpg',
+    };
+    bot.sendMessage(chatId, `Ваш профиль\nID: ${user.id}\nФИО: ${user.name}\nТелефон: ${user.phone}`);
+    return bot.sendPhoto(chatId, Buffer.from(file.substr(17), 'base64'), fileOpts);
+};
+
+const becomeAdmin = async (user, chatId, msg) => {
+    user.admin = true;
+    await user.save();
+    return bot.sendMessage(chatId, `Добро пожаловать! Для начала работы введите необходимую команду: \n/search_by_date - Поиск ID пользователей по дате добавления\n/search_phone - Поиск пользователя по телефону\n/search_id - Поиск пользователя по ID\n/send_message - Отправить сообщение пользователям по ID`);
+};
+
+const searchByDate = async (user, chatId, msg) => {
+    user.state = 11;
+    await user.save();
+    return bot.sendMessage(chatId, `Чтобы получить информацию о зарегистрированных пользователях по дате добавления, введите интересующую Вас дату в формате 2022-01-02, где 2022 - год, 01 - месяц, 02 – день.`);
+};
+const searchPhone = async (user, chatId, msg) => {
+    user.state = 12;
+    await user.save();
+    return bot.sendMessage(chatId, `Пожалуйста, введите номер телефона пользователя в формате "89999999999".`);
+};
+const searchId = async (user, chatId, msg) => {
+    user.state = 13;
+    await user.save();
+    return bot.sendMessage(chatId, `Пожалуйста, введите ID пользователя, который Вас интересует.`);
+};
+/* #endregion */
+const sendMessageFromAdmin = async (user, chatId, msg) => {
+    user.state = 14;
+    await user.save();
+    return bot.sendMessage(chatId, `Напишите id пользователей через пробел, которым хотите отправить сообщение и сообщение через /. Пример:\n12 8 4 2 6 / Привет!`);
 }
-start()
+
+const defaultFunc = async (user, chatId, msg) => {
+
+    switch (user.state) {
+        case 0: {
+            await UserModule.calculate0(bot, user, chatId, msg);
+        }
+            break;
+        case 1: {
+            await UserModule.calculate1(bot, user, chatId, msg);
+        }
+            break;
+        case 2: {
+            await UserModule.calculate2(bot, user, chatId, msg);
+        }
+            break;
+        case 11: {
+            if (!user.admin) {
+                return bot.sendMessage(chatId, 'Упс! Этой командой могут пользоваться только администраторы. Похоже, Вы не из их числа. Чтобы исправить это, обратитесь к @mishagina08');
+            }
+            await AdminModule.calculate11(bot, user, chatId, msg);
+        }
+            break;
+        case 12: {
+            if (!user.admin) {
+
+                console.log('12 Ты не администратор');
+                return bot.sendMessage(chatId, 'Упс! Этой командой могут пользоваться только администраторы. Похоже, Вы не из их числа. Чтобы исправить это, обратитесь к @mishagina08');
+            }
+            await AdminModule.calculate12(bot, user, chatId, msg);
+        }
+            break;
+        case 13: {
+            if (!user.admin) {
+                console.log('13 Ты не администратор');
+                return bot.sendMessage(chatId, 'Упс! Этой командой могут пользоваться только администраторы. Похоже, Вы не из их числа. Чтобы исправить это, обратитесь к @mishagina08');
+            }
+            await AdminModule.calculate13(bot, user, chatId, msg);
+        }
+            break;
+        case 14: {
+            if (!user.admin) {
+                console.log('13 Ты не администратор');
+                return bot.sendMessage(chatId, 'Упс! Этой командой могут пользоваться только администраторы. Похоже, Вы не из их числа. Чтобы исправить это, обратитесь к @mishagina08');
+            }
+            await AdminModule.calculate14(bot, user, chatId, msg);
+        }
+            break;
+        default:
+            break;
+    }
+
+};
+
+
+
